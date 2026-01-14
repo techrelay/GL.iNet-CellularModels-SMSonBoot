@@ -1,0 +1,24 @@
+# 📡 GL.iNet Cellular SMS on Boot
+
+Send an SMS from a **GL.iNet cellular router** when it boots — ideal for alerts after **power outages** or unexpected reboots.
+
+This project targets **GL.iNet / OpenWrt firmware** that includes the built-in `sendsms` utility (for example: **GL-XE3000**, **Puli AX**, and other cellular models).
+
+---
+
+## ✨ Features
+
+- 📲 Sends an SMS on router boot
+- 🔌 Great for power-outage notifications
+- 🌐 Automatically detects the active cellular WAN interface
+- 🕒 Built-in cooldown to prevent SMS spam
+- 🛠 Uses GL.iNet’s native `sendsms` backend (same path as the web UI)
+
+---
+
+## 🚀 One-Line Install
+
+Replace `<YOURNUMBER>` with the phone number that should receive the SMS:
+
+```sh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/zippyy/GL.iNet-CellularModels-SMSonBoot/main/install.sh)" -- <YOURNUMBER>
