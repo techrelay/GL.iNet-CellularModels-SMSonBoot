@@ -16,6 +16,8 @@ This project targets **GL.iNet / OpenWrt firmware** that includes the built-in `
 
 ---
 
+**Manual install instructions incoming**
+
 ## 🚀 One-Line Install
 
 Replace `<YOURNUMBER>` with the phone number that should receive the SMS:
