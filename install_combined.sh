@@ -1,89 +1,124 @@
 #!/bin/sh
-set -eu
+LOG="/tmp/sms_on_boot_combined.log"
+STATE="/etc/sms_on_boot_combined.last"
+COOLDOWN=1800
 
-PHONE="${1:-}"
-PREFER="${2:-}"
-TEXTBELT_KEY="${3:-}"
+PHONE="+11234567890"
+PREFER="textbelt"            # textbelt or sendsms
+TEXTBELT_KEY=""              # set to enable textbelt, or leave empty
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "Run as root." >&2
-  exit 1
-fi
+log() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 
-# ---- Interactive fallback ----
-if [ -z "$PHONE" ] || [ -z "$PREFER" ]; then
-  echo
-  echo "SMS on Boot - Combined Installer"
-  echo "--------------------------------"
-  echo "Choose which provider to try FIRST:"
-  echo "  1) Textbelt (HTTPS API)"
-  echo "  2) sendsms  (local SIM)"
-  echo
-  printf "Enter 1 or 2: "
-  read choice
+log "Script start"
 
-  PREFER="textbelt"
-  [ "$choice" = "2" ] && PREFER="sendsms"
+find_wan_iface() {
+  dev="$(ip route 2>/dev/null | awk '/^default /{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+  if [ -n "$dev" ]; then
+    case "$dev" in
+      lo|br-lan|lan*|eth*|en*|wl*|wlan*|phy*|ap*|bat*|ifb*|docker*|veth*|tun*|wg*|tailscale* ) ;;
+      *) echo "$dev"; return 0 ;;
+    esac
+  fi
 
-  printf "Destination phone number (E.164, e.g. +17192291657): "
-  read PHONE
+  for dev in $(ls /sys/class/net 2>/dev/null); do
+    case "$dev" in
+      wan*|ppp*|wwan*|usb*|rmnet*|mhi*|cdc*|en*|eth* )
+        ip -4 addr show dev "$dev" 2>/dev/null | grep -q "inet " && { echo "$dev"; return 0; }
+        ;;
+    esac
+  done
+  return 1
+}
 
-  if [ "$PREFER" = "textbelt" ]; then
-    printf "Textbelt key (or 'textbelt' for free tier): "
-    read TEXTBELT_KEY
+send_textbelt() {
+  if [ -z "$TEXTBELT_KEY" ]; then
+    log "Textbelt: key not set"
+    return 1
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    log "Textbelt: curl not found"
+    return 1
+  fi
+
+  # Never hang forever
+  RESP="$(curl -sS --connect-timeout 10 --max-time 20 -X POST https://textbelt.com/text \
+    --data-urlencode phone="$PHONE" \
+    --data-urlencode message="$MSG" \
+    -d key="$TEXTBELT_KEY" 2>>"$LOG" || true)"
+
+  echo "[$(date '+%F %T')] Textbelt response: $RESP" >> "$LOG"
+  echo "$RESP" | grep -q '"success":[[:space:]]*true'
+}
+
+send_sendsms() {
+  if ! command -v sendsms >/dev/null 2>&1; then
+    log "sendsms: sendsms not found"
+    return 1
+  fi
+  # Use international to work with E.164 +1... numbers
+  sendsms "$PHONE" "$MSG" international >/dev/null 2>&1
+}
+
+# Cooldown guard
+now="$(date +%s)"
+if [ -f "$STATE" ]; then
+  last="$(cat "$STATE" 2>/dev/null | tr -dc '0-9')"
+  if [ -n "$last" ] && [ $((now-last)) -lt "$COOLDOWN" ]; then
+    log "Cooldown active, skipping"
+    exit 0
   fi
 fi
 
-# ---- Validation ----
-if [ -z "$PHONE" ]; then
-  echo "ERROR: phone number required" >&2
-  exit 1
+# Wait a bit for SMS daemons (helps sendsms fallback on cellular models)
+i=0
+while [ $i -lt 60 ]; do
+  pidof sms_manager >/dev/null 2>&1 && pidof smsd >/dev/null 2>&1 && break
+  sleep 2
+  i=$((i+1))
+done
+
+WAN_IFACE="$(find_wan_iface 2>/dev/null || true)"
+WAN_IP=""
+if [ -n "$WAN_IFACE" ]; then
+  WAN_IP="$(ip -4 addr show dev "$WAN_IFACE" 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1)"
 fi
 
-case "$PREFER" in
-  textbelt|sendsms) ;;
-  *)
-    echo "ERROR: prefer must be 'textbelt' or 'sendsms'" >&2
-    exit 1
-    ;;
-esac
+MSG="GL.iNet router booted after power outage.
+Time: $(date '+%F %T %Z')"
+[ -n "$WAN_IFACE" ] && MSG="$MSG
+WAN IF: $WAN_IFACE"
+[ -n "$WAN_IP" ] && MSG="$MSG
+WAN IP: $WAN_IP"
 
-if [ "$PREFER" = "textbelt" ] && [ -z "$TEXTBELT_KEY" ]; then
-  echo "ERROR: Textbelt key required when prefer=textbelt" >&2
-  exit 1
+log "Preferred provider: $PREFER"
+
+if [ "$PREFER" = "textbelt" ]; then
+  log "Trying Textbelt first"
+  if send_textbelt; then
+    log "Sent via Textbelt"
+    echo "$now" > "$STATE"
+    exit 0
+  fi
+  log "Textbelt failed, trying sendsms"
+  if send_sendsms; then
+    log "Sent via sendsms"
+    echo "$now" > "$STATE"
+    exit 0
+  fi
+else
+  log "Trying sendsms first"
+  if send_sendsms; then
+    log "Sent via sendsms"
+    echo "$now" > "$STATE"
+    exit 0
+  fi
+  log "sendsms failed, trying Textbelt"
+  if send_textbelt; then
+    log "Sent via Textbelt"
+    echo "$now" > "$STATE"
+    exit 0
+  fi
 fi
 
-if ! command -v curl >/dev/null 2>&1; then
-  echo "ERROR: curl not found." >&2
-  exit 1
-fi
-
-echo "[*] Downloading sms_on_boot_combined.sh..."
-curl -fsSL \
-  https://raw.githubusercontent.com/zippyy/GL.iNet-CellularModels-SMSonBoot/main/sms_on_boot_combined.sh \
-  -o /usr/bin/sms_on_boot_combined.sh
-
-chmod +x /usr/bin/sms_on_boot_combined.sh
-
-# ---- Apply config ----
-sed -i "s|^PHONE=\".*\"|PHONE=\"$PHONE\"|g" /usr/bin/sms_on_boot_combined.sh
-sed -i "s|^PREFER=\".*\"|PREFER=\"$PREFER\"|g" /usr/bin/sms_on_boot_combined.sh
-sed -i "s|^TEXTBELT_KEY=\".*\"|TEXTBELT_KEY=\"$TEXTBELT_KEY\"|g" /usr/bin/sms_on_boot_combined.sh
-
-echo "[*] Creating init.d service..."
-cat > /etc/init.d/sms_on_boot_combined <<'EOF'
-#!/bin/sh /etc/rc.common
-START=99
-start() {
-  /usr/bin/sms_on_boot_combined.sh &
-}
-EOF
-
-chmod +x /etc/init.d/sms_on_boot_combined
-/etc/init.d/sms_on_boot_combined enable
-
-echo "[OK] Installed Combined version."
-echo "To test immediately (no reboot required):"
-echo "  rm -f /etc/sms_on_boot_combined.last"
-echo "  /usr/bin/sms_on_boot_combined.sh"
-echo "  cat /tmp/sms_on_boot_combined.log"
+log "All providers failed"
+exit 1
