@@ -1,7 +1,7 @@
 #!/bin/sh
 LOG="/tmp/sms_on_boot_textbelt.log"
 STATE="/etc/sms_on_boot_textbelt.last"
-COOLDOWN=1800   # seconds (30 min)
+COOLDOWN=300   # seconds (5 min)
 
 PHONE="+11234567890"        # change if needed
 TEXTBELT_KEY="textbelt"     # set your key here
