@@ -3,12 +3,18 @@ LOG="/tmp/sms_on_boot_combined.log"
 STATE="/etc/sms_on_boot_combined.last"
 COOLDOWN=300
 
+# Defaults (can be overridden by /etc/sms_on_boot_combined.conf)
 PHONE="+11234567890"
 PREFER="textbelt"
 TEXTBELT_KEY=""
 
-log() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
+CONF="/etc/sms_on_boot_combined.conf"
+if [ -f "$CONF" ]; then
+  # shellcheck disable=SC1090
+  . "$CONF"
+fi
 
+log() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 log "Script start"
 
 find_wan_iface() {
