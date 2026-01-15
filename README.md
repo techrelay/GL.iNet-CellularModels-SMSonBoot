@@ -27,6 +27,8 @@ Example including country code: +13038675309
 For the textbelt version replace `<YOURNUMBER>` and `<YOUR_TEXTBELT_KEY>`
 
 ```sh
+**SENDSMS (Cellular SIM) Version**
+
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/techrelay/GL.iNet-CellularModels-SMSonBoot/main/install.sh)" -- <YOURNUMBER>
 
 **TextBelt Version**
