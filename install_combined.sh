@@ -1,7 +1,7 @@
 #!/bin/sh
 LOG="/tmp/sms_on_boot_combined.log"
 STATE="/etc/sms_on_boot_combined.last"
-COOLDOWN=1800
+COOLDOWN=300 
 
 PHONE="+11234567890"
 PREFER="textbelt"            # textbelt or sendsms
