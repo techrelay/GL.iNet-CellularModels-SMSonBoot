@@ -29,5 +29,6 @@ For the textbelt version replace `<YOURNUMBER>` and `<YOUR_TEXTBELT_KEY>`
 ```sh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/techrelay/GL.iNet-CellularModels-SMSonBoot/main/install.sh)" -- <YOURNUMBER>
 
+**TextBelt Version**
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/zippyy/GL.iNet-CellularModels-SMSonBoot/main/install_textbelt.sh)" -- <YOURNUMBER> <YOUR_TEXTBELT_KEY>
