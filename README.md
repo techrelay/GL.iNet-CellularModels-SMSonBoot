@@ -14,6 +14,9 @@ This project targets **GL.iNet / OpenWrt firmware** that includes the built-in `
 - 🕒 Built-in cooldown to prevent SMS spam
 - 🛠 Uses GL.iNet’s native `sendsms` backend (same path as the web UI)
 
+  ![35BF6268-8DBB-4A14-99C2-8406653029FB_1_105_c](https://github.com/user-attachments/assets/0372f6cc-ef24-485f-a133-c45d68f73a19)
+
+
 ---
 
 **Manual install instructions incoming**
@@ -38,8 +41,5 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/techrelay/GL.iNet-Cellular
 **Combined Version** **This version is interactive and has no arguments**
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/techrelay/GL.iNet-CellularModels-SMSonBoot/main/install_combined.sh)"
-
-
-![35BF6268-8DBB-4A14-99C2-8406653029FB_1_105_c](https://github.com/user-attachments/assets/41bc91a7-c82f-4833-94a1-89fc69ae90b9)
 
 
